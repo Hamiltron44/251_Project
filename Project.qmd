@@ -1,76 +1,93 @@
 ---
-title: "Project"
-author: "Spencer Hamilton, Chris Gordon, and Dan Sumsion"
-format: pdf
+title: "eda"
+format: html
 editor: visual
 ---
 
+## eda
+
 ```{r}
-library(vroom)
+
+movie <- read.csv("movie.csv")
+```
+
+```{r}
 library(dplyr)
 library(lubridate)
 library(ggplot2)
-library(tidyverse)
 ```
 
 ```{r}
-
-
-movie <- vroom("TMDB_movie_dataset_v11.csv")
-
-
 cutoff_year <- 2000
 
-movie <- movie |>
+movie <- movie |> 
   filter(status == "Released",
          vote_average > 0) |>
   mutate(release_date = as.Date(release_date),
-         release_year = year(release_date),
-         movie_age = ifelse(release_year <= cutoff_year, "Old", "New"))
+    release_year = year(release_date),
+    movie_age = ifelse(release_year <= cutoff_year, "Old", "New"))
+```
 
+ 
 
-
-movie$year_bin <- cut(movie$release_year,
-                      breaks = seq(floor(min(movie$release_year, na.rm = TRUE) / 10) * 10,
-                                   ceiling(max(movie$release_year, na.rm = TRUE) / 10) * 10, 
-                                   by = 10),
-                      right = FALSE,
-                      labels = paste0(seq(floor(min(movie$release_year, 
-                                                    na.rm = TRUE) / 10) * 10,
-                                          ceiling(max(movie$release_year, 
-                                                      na.rm = TRUE) / 10) * 10 - 10,
-                                          by = 10),
-                                      "s")) # Format labels as "1990s","2000s", etc.
-
-
+```{r}
+movie$year_bin <- cut(movie$release_year, 
+                        breaks = seq(floor(min(movie$release_year, na.rm = TRUE) / 10) * 10, 
+                                     ceiling(max(movie$release_year, na.rm = TRUE) / 10) * 10, 
+                                     by = 10), 
+                        right = FALSE, 
+                        labels = paste0(seq(floor(min(movie$release_year, na.rm = TRUE) / 10) * 10, 
+                                            ceiling(max(movie$release_year, na.rm = TRUE) / 10) * 10 - 10, 
+                                            by = 10), 
+                                        "s"))  # Format labels as "1990s", "2000s", etc.
 
 summary(movie)
+
 
 ```
 
 ```{r}
+
+
 ggplot(movie, aes(x = release_year)) +
-  geom_histogram(binwidth = 5, fill ="blue", color ='black') +
-  labs(title ="Distribution of Movie Release Years", x = 'Year', y = 'count')
-
-
+  geom_histogram(binwidth = 5, fill = "blue", color = "black") +
+  labs(title = "Distribution of Movie Release Years", x = "Year", y = "Count") +
+  theme_minimal()
 ```
 
 ```{r}
 # Now you can plot the distribution of ratings
 ggplot(movie, aes(x = vote_average)) +
-  geom_histogram(binwidth = 1, fill ="blue", color = 'black') +
-  labs(title ="Distribution of Movie Ratings", x ="Rating", y ="Count")
+  geom_histogram(binwidth = 1, fill = "blue", color = "black") +
+  labs(title = "Distribution of Movie Ratings", x = "Rating", y = "Count") +
+  theme_minimal()
+
+
 ```
 
 ```{r}
 cat(quantile(movie$release_year, 0.3, na.rm = TRUE))
+cat(ecdf(movie$release_year)(2000))
+
+cat(table(movie$year_bin))
 ```
 
 ```{r}
-cat(ecdf(movie$release_year)(2000))
-cat(table(movie$year_bin))
+min(movie$release_date, na.rm = TRUE)
 ```
+
+```{r}
+# Filter and sort movies released before 1900
+movies_before_1900_sorted <- movie |> 
+  filter(year(release_date) < 1900) |> 
+  arrange(release_date)
+
+# View the sorted movies before 1900
+print(movies_before_1900_sorted)
+
+
+```
+
 ```{r}
 #adult and child movies
 table(movie$adult)
@@ -107,4 +124,74 @@ samples_nadult <- rbeta(n_samples, post_nadult_alpha, post_nadult_beta)
 samples_adult <- rbeta(n_samples, post_adult_alpha, post_adult_beta)
 
 hist(samples_adult - samples_nadult)
+```
+
+Start The different bayes:
+
+ 
+
+```{r}
+# are adult movies rated better??
+
+library(ggplot2)
+library(dplyr)
+
+# Define prior parameters
+prior_a <- 1  # Example value
+prior_b <- 1  # Example value
+
+# Define posterior parameters
+post_adult_alpha <- prior_a + sum(adult$vote_average)
+post_adult_beta <- prior_b + (nrow(adult) * 10 - sum(adult$vote_average))
+
+# Generate values for the x-axis
+x_vals <- seq(0, 1, length.out = 10000)
+
+# Create a data frame for ggplot
+df <- data.frame(
+  x = rep(x_vals, 2),
+  density = c(dbeta(x_vals, prior_a, prior_b), dbeta(x_vals, post_adult_alpha, post_adult_beta)),
+  distribution = rep(c("Prior", "Posterior"), each = length(x_vals))
+)
+
+# Plot
+ggplot(df, aes(x = x, y = density, color = distribution)) +
+  geom_line(linewidth = 1.2) +
+  labs(title = "Prior vs Posterior Beta Distributions",
+       x = "Probability",
+       y = "Density") +
+  theme_minimal() +
+  scale_color_manual(values = c("blue", "red"))
+
+
+
+
+```
+
+Now we want non-adult rating
+
+```{r}
+
+# Define prior parameters
+prior_a <- 1  # Example value
+prior_b <- 1  # Example value
+
+# Generate values for the x-axis
+x_vals <- seq(0, 1, length.out = 10000)
+
+# Create a data frame for ggplot
+df <- data.frame(
+  x = rep(x_vals, 2),
+  density = c(dbeta(x_vals, prior_a, prior_b), dbeta(x_vals, post_nadult_alpha, post_nadult_beta)),
+  distribution = rep(c("Prior", "Posterior"), each = length(x_vals))
+)
+
+# Plot
+ggplot(df, aes(x = x, y = density, color = distribution)) +
+  geom_line(linewidth = 1.2) +
+  labs(title = "Prior vs Posterior Beta Distributions",
+       x = "Probability",
+       y = "Density") +
+  theme_minimal() +
+  scale_color_manual(values = c("blue", "red"))
 ```
