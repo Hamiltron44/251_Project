@@ -71,3 +71,29 @@ cat(quantile(movie$release_year, 0.3, na.rm = TRUE))
 cat(ecdf(movie$release_year)(2000))
 cat(table(movie$year_bin))
 ```
+
+
+
+Now that the data is MORE organized... here is the MCMC
+Thinking about our priors, we assumed that there will always be good and bad movies, so the average score will probably be around 5, and the variance will be around 1. This feels like a fair prior, since we do not have the time or patience to watch all the movies in our dataset.
+
+
+```{r}
+o_m <- na.omit(movie[movie$movie_age == "Old", ]$vote_average)
+
+post3 <- gibbs.sampler(data = o_m,m = 5,v = 3,a = 1,b = 1,nsamp = 10000,nburn = 0,nthin = 10)
+```
+
+```{r}
+mu_post_r <- na.omit(post3[,1])
+sigma2_post_r <- na.omit(post3[,2])
+
+plot(mu_post_r, type='l')
+plot(sigma2_post_r, type='l')
+
+acf(na.omit(mu_post_r))
+acf(na.omit(sigma2_post_r))
+```
+
+
+
